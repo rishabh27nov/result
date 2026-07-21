@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lakshya Fellowship — Report Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+
+<div class="app-shell">
+  <div class="app-header">
+    <img src="logo.jpeg" alt="Lakshya logo">
+    <div>
+      <h1>Lakshya Fellowship — Report Generator</h1>
+      <p>Fill in the details below, preview the report, then download it as a PDF.</p>
+    </div>
+  </div>
+
+  <form id="reportForm">
+    <div class="autofill-card">
+      <h2><span class="num">&#9733;</span> Auto-fill from Screenshot</h2>
+      <p class="desc">Upload a screenshot of an existing test/performance report and it will try to read the subject, test name, attempted, correct, and time details, and fill them into the matching test block below. Please review the filled values before generating the PDF — OCR can misread a few numbers.</p>
+      <div class="autofill-row">
+        <div class="field">
+          <label>Fill into which subject?</label>
+          <select id="autofillTarget">
+            <option value="auto">Auto-detect from screenshot</option>
+            <option value="physics">Physics</option>
+            <option value="chemistry">Chemistry</option>
+            <option value="biology" class="opt-neet">Biology</option>
+            <option value="maths" class="opt-jee">Mathematics</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Screenshot</label>
+          <input type="file" accept="image/*" id="autofillImage">
+        </div>
+        <button type="button" id="autofillBtn">Extract &amp; Auto-fill</button>
+      </div>
+      <div id="autofillStatus"></div>
+    </div>
+
+    <div class="form-card">
+      <h2><span class="num">1</span> Student & Assessment Details</h2>
+      <div class="grid2">
+        <div class="field">
+          <label>Student Name</label>
+          <input type="text" id="studentName" value="Varisha Zaara Mirza" required>
+        </div>
+        <div class="field">
+          <label>Target Exam</label>
+          <select id="examType">
+            <option value="neet" selected>NEET (Physics, Chemistry, Biology)</option>
+            <option value="jee">JEE (Physics, Chemistry, Mathematics)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Assessment Type</label>
+          <input type="text" id="assessmentType" value="Baseline Subject Assessment">
+        </div>
+        <div class="field">
+          <label>Subjects Assessed</label>
+          <input type="text" id="subjectsAssessed" value="Physics, Chemistry & Biology">
+        </div>
+        <div class="field">
+          <label>Purpose</label>
+          <input type="text" id="purpose" value="Evaluate current academic preparedness and identify areas requiring focused intervention for NEET.">
+        </div>
+      </div>
+      <div class="field">
+        <label>Executive Summary</label>
+        <textarea id="execSummary" rows="3">Baseline assessment indicates strong potential in Physics, while Chemistry and Biology require structured improvement. Positive attitude was shown by attempting nearly every question across all three assessments.</textarea>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <h2><span class="num">2</span> Subject-wise Performance & Analysis</h2>
+
+      <div class="subject-block" data-subject="physics" data-label="Physics">
+        <h3>Physics</h3>
+        <div class="grid3">
+          <div class="field"><label>Marks Scored</label><input type="number" class="marksScored" value="24" min="0"></div>
+          <div class="field"><label>Total Marks</label><input type="number" class="totalMarks" value="30" min="1"></div>
+          <div class="field"><label>Card Colour</label><input type="text" class="cardColor" value="#1B4332"></div>
+        </div>
+        <div class="field"><label>Analysis Note <span class="autotag">(auto-generated from marks)</span></label><textarea class="analysisNote" rows="2" readonly>Physics emerged as the strongest subject, with sound conceptual understanding and analytical ability. Continued practice with higher-order numerical problems is recommended.</textarea></div>
+      </div>
+
+      <div class="subject-block" data-subject="chemistry" data-label="Chemistry">
+        <h3>Chemistry</h3>
+        <div class="grid3">
+          <div class="field"><label>Marks Scored</label><input type="number" class="marksScored" value="17" min="0"></div>
+          <div class="field"><label>Total Marks</label><input type="number" class="totalMarks" value="30" min="1"></div>
+          <div class="field"><label>Card Colour</label><input type="text" class="cardColor" value="#B03A2E"></div>
+        </div>
+        <div class="field"><label>Analysis Note <span class="autotag">(auto-generated from marks)</span></label><textarea class="analysisNote" rows="2" readonly>Chemistry is the highest priority area for improvement. Daily concept revision, chapter-wise MCQ practice, and maintaining an error notebook are strongly recommended.</textarea></div>
+      </div>
+
+      <div class="subject-block" data-subject="biology" data-label="Biology" data-subject-slot="third">
+        <h3>Biology</h3>
+        <div class="grid3">
+          <div class="field"><label>Marks Scored</label><input type="number" class="marksScored" value="10" min="0"></div>
+          <div class="field"><label>Total Marks</label><input type="number" class="totalMarks" value="15" min="1"></div>
+          <div class="field"><label>Card Colour</label><input type="text" class="cardColor" value="#5B2C87"></div>
+        </div>
+        <div class="field"><label>Analysis Note <span class="autotag">(auto-generated from marks)</span></label><textarea class="analysisNote" rows="2" readonly>Biology performance was satisfactory but indicates the need for stronger conceptual clarity and regular NCERT-based revision.</textarea></div>
+      </div>
+      <p class="hint">Accuracy %, performance level, and the Analysis Note above are calculated automatically from marks and the selected Target Exam (NEET / JEE).</p>
+    </div>
+
+    <div class="form-card">
+      <h2><span class="num">3</span> Strengths & Areas Requiring Attention</h2>
+      <div class="grid2">
+        <div class="field">
+          <label>Strengths (one per line)</label>
+          <textarea id="strengths" rows="5">Strong performance in Physics
+High confidence in attempting questions
+Good learning potential
+Positive attitude towards assessments</textarea>
+        </div>
+        <div class="field">
+          <label>Areas Requiring Attention (one per line)</label>
+          <textarea id="attentions" rows="5">Strengthen Chemistry fundamentals
+Improve Biology conceptual understanding
+Reduce avoidable errors
+Develop a structured revision routine
+Analyse mistakes after every test</textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <h2><span class="num">4</span> Support Plan & Overall Evaluation</h2>
+      <div class="field">
+        <label>Recommended Academic Support Plan</label>
+        <textarea id="supportPlan" rows="2">Weekly mentoring, additional Chemistry support classes, Biology revision worksheets, regular chapter-wise tests, and continuous performance tracking through the Lakshya Fellowship Programme.</textarea>
+      </div>
+      <div class="field">
+        <label>Overall Evaluation</label>
+        <textarea id="overallEval" rows="3">Demonstrates good academic potential. With structured mentoring, consistent practice, and focused intervention in Chemistry and Biology, strong improvement is expected for NEET preparation.</textarea>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <h2><span class="num">5</span> Individual Test / Performance Reports</h2>
+      <p class="hint">One block per subject test. Incorrect, unattempted, score% and accuracy% are calculated automatically.</p>
+
+      <div class="subject-block" data-testblock="physics" data-label="Physics">
+        <h3>Physics — Test Report</h3>
+        <div class="grid3">
+          <div class="field"><label>Test Name</label><input type="text" class="testName" value="Physical World and Measurement Test - 1"></div>
+          <div class="field"><label>Section Name</label><input type="text" class="sectionName" value="Section - 1"></div>
+          <div class="field"><label>Total Questions</label><input type="number" class="totalQ" value="30" min="1"></div>
+        </div>
+        <div class="grid3">
+          <div class="field"><label>Attempted</label><input type="number" class="attemptedQ" value="29" min="0"></div>
+          <div class="field"><label>Correct</label><input type="number" class="correctQ" value="24" min="0"></div>
+          <div class="field"><label>Section Time Taken (mm:ss)</label><input type="text" class="sectionTime" value="11:21"></div>
+        </div>
+        <div class="field"><label>Time spent on un-attempted (mm:ss)</label><input type="text" class="unattemptedTime" value="1:05"></div>
+        <div class="field">
+          <label>Overview Chart Screenshot (optional — replaces the auto-generated chart)</label>
+          <input type="file" accept="image/*" class="overviewImageInput">
+          <div class="img-preview-wrap"></div>
+        </div>
+      </div>
+
+      <div class="subject-block" data-testblock="chemistry" data-label="Chemistry">
+        <h3>Chemistry — Test Report</h3>
+        <div class="grid3">
+          <div class="field"><label>Test Name</label><input type="text" class="testName" value="Some Basic Concepts of Chemistry Test - 1"></div>
+          <div class="field"><label>Section Name</label><input type="text" class="sectionName" value="Section - 1"></div>
+          <div class="field"><label>Total Questions</label><input type="number" class="totalQ" value="30" min="1"></div>
+        </div>
+        <div class="grid3">
+          <div class="field"><label>Attempted</label><input type="number" class="attemptedQ" value="30" min="0"></div>
+          <div class="field"><label>Correct</label><input type="number" class="correctQ" value="17" min="0"></div>
+          <div class="field"><label>Section Time Taken (mm:ss)</label><input type="text" class="sectionTime" value="13:16"></div>
+        </div>
+        <div class="field"><label>Time spent on un-attempted (mm:ss)</label><input type="text" class="unattemptedTime" value="0:00"></div>
+        <div class="field">
+          <label>Overview Chart Screenshot (optional — replaces the auto-generated chart)</label>
+          <input type="file" accept="image/*" class="overviewImageInput">
+          <div class="img-preview-wrap"></div>
+        </div>
+      </div>
+
+      <div class="subject-block" data-testblock="biology" data-label="Biology" data-testblock-slot="third">
+        <h3>Biology — Test Report</h3>
+        <div class="grid3">
+          <div class="field"><label>Test Name</label><input type="text" class="testName" value="Living World Test - 1"></div>
+          <div class="field"><label>Section Name</label><input type="text" class="sectionName" value="Living world"></div>
+          <div class="field"><label>Total Questions</label><input type="number" class="totalQ" value="15" min="1"></div>
+        </div>
+        <div class="grid3">
+          <div class="field"><label>Attempted</label><input type="number" class="attemptedQ" value="15" min="0"></div>
+          <div class="field"><label>Correct</label><input type="number" class="correctQ" value="10" min="0"></div>
+          <div class="field"><label>Section Time Taken (mm:ss)</label><input type="text" class="sectionTime" value="8:38"></div>
+        </div>
+        <div class="field"><label>Time spent on un-attempted (mm:ss)</label><input type="text" class="unattemptedTime" value="0:00"></div>
+        <div class="field">
+          <label>Overview Chart Screenshot (optional — replaces the auto-generated chart)</label>
+          <input type="file" accept="image/*" class="overviewImageInput">
+          <div class="img-preview-wrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button type="submit" class="btn-primary">Generate Report Preview</button>
+    </div>
+  </form>
+
+  <div id="previewSection">
+    <div class="preview-toolbar">
+      <h2>Preview</h2>
+      <div>
+        <button type="button" class="btn-secondary" id="downloadBtn">Download as PDF</button>
+        <span id="pdfStatus"></span>
+      </div>
+    </div>
+    <div class="pages-wrap" id="pagesWrap"></div>
+  </div>
+</div>
+
+
+
+<script src="script.js"></script>
+</body>
+</html>
