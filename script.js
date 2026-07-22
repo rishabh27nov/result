@@ -37,7 +37,7 @@ function buildCoverPage(data){
     const lvl = levelFor(pct);
     return `<tr>
       <td style="text-align:left;font-weight:600;">${esc(s.name)}</td>
-      <td>${s.scored} / ${s.total}</td>
+      <td style="white-space:nowrap!important;">${s.scored}&nbsp;/&nbsp;${s.total}</td>
       <td>${pct.toFixed(2)}%</td>
       <td><span class="level-tag" style="background:${lvl.color}">${lvl.label}</span></td>
     </tr>`;
@@ -127,11 +127,11 @@ function buildPerfPage(t, canvasIdDonut, canvasIdBar){
       </div>
 
       <div class="stats-bar">
-        <div class="cell"><div class="lab">SCORE</div><div class="val" style="color:#1D4ED8">${correct.toFixed(2)} / ${total}</div></div>
+        <div class="cell"><div class="lab">SCORE</div><div class="val" style="color:#1D4ED8;white-space:nowrap!important;">${correct.toFixed(2)}&nbsp;/&nbsp;${total}</div></div>
         <div class="cell"><div class="lab">ACCURACY</div><div class="val" style="color:#0E9F6E">${accuracyPct.toFixed(2)}%</div></div>
-        <div class="cell"><div class="lab">ATTEMPTED</div><div class="val" style="color:#7C3AED">${attempted} / ${total}</div></div>
-        <div class="cell"><div class="lab">CORRECT</div><div class="val" style="color:#0E9F6E">${correct} / ${total}</div></div>
-        <div class="cell"><div class="lab">INCORRECT</div><div class="val" style="color:#DC2626">${incorrect} / ${total}</div></div>
+        <div class="cell"><div class="lab">ATTEMPTED</div><div class="val" style="color:#7C3AED;white-space:nowrap!important;">${attempted}&nbsp;/&nbsp;${total}</div></div>
+        <div class="cell"><div class="lab">CORRECT</div><div class="val" style="color:#0E9F6E;white-space:nowrap!important;">${correct}&nbsp;/&nbsp;${total}</div></div>
+        <div class="cell"><div class="lab">INCORRECT</div><div class="val" style="color:#DC2626;white-space:nowrap!important;">${incorrect}&nbsp;/&nbsp;${total}</div></div>
         <div class="cell"><div class="lab">TIME/QUES</div><div class="val" style="color:#D97706">${secToTimeStr(perQSec)}</div></div>
       </div>
 
@@ -151,8 +151,8 @@ function buildPerfPage(t, canvasIdDonut, canvasIdBar){
         <tr><th>SECTION</th><th>ATTEMPTED</th><th>CORRECT</th><th>ACCURACY</th><th>TIME TAKEN</th></tr>
         <tr>
           <td style="color:#1D4ED8;font-weight:700;">${esc(t.sectionName)}</td>
-          <td style="color:#7C3AED;">${attempted} / ${total}</td>
-          <td style="color:#0E9F6E;">${correct} / ${total}</td>
+          <td style="color:#7C3AED;white-space:nowrap!important;">${attempted}&nbsp;/&nbsp;${total}</td>
+          <td style="color:#0E9F6E;white-space:nowrap!important;">${correct}&nbsp;/&nbsp;${total}</td>
           <td style="color:#1D4ED8;">${accuracyPct.toFixed(2)}%</td>
           <td>${t.sectionTime}</td>
         </tr>
