@@ -405,10 +405,10 @@ document.getElementById('autofillBtn').addEventListener('click', async function(
   const fileInput = document.getElementById('autofillImage');
   const targetSel = document.getElementById('autofillTarget').value;
   const statusEl = document.getElementById('autofillStatus');
-  const file = fileInput.files && fileInput.files[0];
+  const files = fileInput.files ? Array.from(fileInput.files) : [];
 
-  if(!file){
-    statusEl.textContent = 'Please choose a screenshot first.';
+  if(!files.length){
+    statusEl.textContent = 'Please choose at least one screenshot first.';
     statusEl.className = 'error';
     return;
   }
@@ -420,70 +420,79 @@ document.getElementById('autofillBtn').addEventListener('click', async function(
 
   this.disabled = true;
   statusEl.className = '';
-  statusEl.textContent = 'Reading screenshot… 0%';
 
-  try{
-    const { data } = await Tesseract.recognize(file, 'eng', {
-      logger: (info)=>{
-        if(info.status === 'recognizing text'){
-          statusEl.textContent = 'Reading screenshot… ' + Math.round(info.progress*100) + '%';
-        } else {
-          statusEl.textContent = (info.status || 'Working…');
+  const multi = files.length > 1;
+  const currentExamType = document.getElementById('examType').value;
+  const allowedSubjects = ['physics','chemistry', currentExamType==='jee' ? 'maths' : 'biology'];
+  const resultLines = [];
+  let lastGoodBlock = null;
+
+  for(let idx=0; idx<files.length; idx++){
+    const file = files[idx];
+    const fileLabel = files.length > 1 ? `Image ${idx+1}/${files.length} (${file.name})` : file.name;
+
+    try{
+      statusEl.textContent = `Reading ${fileLabel}… 0%`;
+      const { data } = await Tesseract.recognize(file, 'eng', {
+        logger: (info)=>{
+          if(info.status === 'recognizing text'){
+            statusEl.textContent = `Reading ${fileLabel}… ` + Math.round(info.progress*100) + '%';
+          } else {
+            statusEl.textContent = `${fileLabel}: ` + (info.status || 'Working…');
+          }
         }
+      });
+
+      const parsed = parseReportText(data.text || '');
+
+      // subject is auto-detected per image whenever multiple files are uploaded;
+      // the manual dropdown only applies when a single screenshot is selected
+      let subjectKey = multi ? 'auto' : targetSel;
+      if(subjectKey === 'auto'){
+        subjectKey = parsed.subject && allowedSubjects.includes(parsed.subject) ? parsed.subject : null;
       }
-    });
+      if(!subjectKey){
+        resultLines.push(`${fileLabel}: could not detect the subject automatically — skipped.`);
+        continue;
+      }
 
-    const parsed = parseReportText(data.text || '');
+      const block = document.querySelector(`.subject-block[data-testblock="${subjectKey}"]`);
+      if(!block){
+        resultLines.push(`${fileLabel}: matching subject block not found.`);
+        continue;
+      }
 
-    const currentExamType = document.getElementById('examType').value;
-    const allowedSubjects = ['physics','chemistry', currentExamType==='jee' ? 'maths' : 'biology'];
+      const filled = [];
+      if(parsed.testName){ block.querySelector('.testName').value = parsed.testName; filled.push('Test name'); }
+      if(parsed.sectionName){ block.querySelector('.sectionName').value = parsed.sectionName; filled.push('Section name'); }
+      if(parsed.total){ block.querySelector('.totalQ').value = parsed.total; filled.push('Total questions'); }
+      if(parsed.attempted != null){ block.querySelector('.attemptedQ').value = parsed.attempted; filled.push('Attempted'); }
+      if(parsed.correct != null){ block.querySelector('.correctQ').value = parsed.correct; filled.push('Correct'); }
+      if(parsed.sectionTimeSec != null){ block.querySelector('.sectionTime').value = secToMinSecStr(parsed.sectionTimeSec); filled.push('Section time'); }
 
-    let subjectKey = targetSel;
-    if(subjectKey === 'auto'){
-      subjectKey = parsed.subject && allowedSubjects.includes(parsed.subject) ? parsed.subject : null;
+      block.style.transition = 'box-shadow 0.3s';
+      block.style.boxShadow = '0 0 0 3px #C9A227';
+      setTimeout(()=>{ block.style.boxShadow = 'none'; }, 2000);
+      lastGoodBlock = block;
+
+      if(filled.length){
+        resultLines.push(`${fileLabel} → ${subjectKey.charAt(0).toUpperCase()+subjectKey.slice(1)}: ${filled.join(', ')}.`);
+      } else {
+        resultLines.push(`${fileLabel} → ${subjectKey.charAt(0).toUpperCase()+subjectKey.slice(1)}: could not confidently read values.`);
+      }
+    } catch(err){
+      console.error(err);
+      resultLines.push(`${fileLabel}: something went wrong reading this screenshot.`);
     }
-    if(!subjectKey){
-      statusEl.textContent = 'Could not detect the subject automatically — please pick it from the dropdown and try again.';
-      statusEl.className = 'error';
-      this.disabled = false;
-      return;
-    }
-
-    const block = document.querySelector(`.subject-block[data-testblock="${subjectKey}"]`);
-    if(!block){
-      statusEl.textContent = 'Matching subject block not found.';
-      statusEl.className = 'error';
-      this.disabled = false;
-      return;
-    }
-
-    const filled = [];
-    if(parsed.testName){ block.querySelector('.testName').value = parsed.testName; filled.push('Test name'); }
-    if(parsed.sectionName){ block.querySelector('.sectionName').value = parsed.sectionName; filled.push('Section name'); }
-    if(parsed.total){ block.querySelector('.totalQ').value = parsed.total; filled.push('Total questions'); }
-    if(parsed.attempted != null){ block.querySelector('.attemptedQ').value = parsed.attempted; filled.push('Attempted'); }
-    if(parsed.correct != null){ block.querySelector('.correctQ').value = parsed.correct; filled.push('Correct'); }
-    if(parsed.sectionTimeSec != null){ block.querySelector('.sectionTime').value = secToMinSecStr(parsed.sectionTimeSec); filled.push('Section time'); }
-
-    block.scrollIntoView({behavior:'smooth', block:'center'});
-    block.style.transition = 'box-shadow 0.3s';
-    block.style.boxShadow = '0 0 0 3px #C9A227';
-    setTimeout(()=>{ block.style.boxShadow = 'none'; }, 2000);
-
-    if(filled.length){
-      statusEl.textContent = `Filled into ${subjectKey.charAt(0).toUpperCase()+subjectKey.slice(1)}: ${filled.join(', ')}. Please review the values before generating the report.`;
-      statusEl.className = 'success';
-    } else {
-      statusEl.textContent = 'Could not confidently read the values from this screenshot. Please fill the fields manually.';
-      statusEl.className = 'error';
-    }
-  } catch(err){
-    console.error(err);
-    statusEl.textContent = 'Something went wrong reading the screenshot. Please try a clearer image or fill manually.';
-    statusEl.className = 'error';
-  } finally {
-    this.disabled = false;
   }
+
+  if(lastGoodBlock){ lastGoodBlock.scrollIntoView({behavior:'smooth', block:'center'}); }
+
+  const anySuccess = resultLines.some(l => !l.includes('could not') && !l.includes('skipped') && !l.includes('went wrong') && !l.includes('not found'));
+  statusEl.innerHTML = resultLines.map(esc).join('<br>') + (files.length > 1 ? '<br>Please review all filled values before generating the report.' : '');
+  statusEl.className = anySuccess ? 'success' : 'error';
+
+  this.disabled = false;
 });
 
 document.querySelectorAll('.overviewImageInput').forEach(input=>{
