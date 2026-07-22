@@ -25,6 +25,11 @@ function secToTimeStr(sec){
   return m + ' Min ' + s + ' Sec';
 }
 function secToMin(sec){ return sec/60; }
+function secToClock(sec){
+  sec = Math.max(0, Math.round(sec));
+  const m = Math.floor(sec/60), s = sec%60;
+  return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
 
 function buildCoverPage(data){
   const subjRows = data.subjects.map(s=>{
@@ -132,9 +137,14 @@ function buildPerfPage(t, canvasIdDonut, canvasIdBar){
 
       <div class="overview-title">OVERVIEW</div>
       <div class="overview-row">
-        <div class="donut-wrap">${t.overviewImage ? `<img class="overview-uploaded" src="${t.overviewImage}">` : `<canvas id="${canvasIdDonut}" width="240" height="220"></canvas>`}</div>
+        <div class="donut-wrap">${t.overviewImage ? `<img class="overview-uploaded" src="${t.overviewImage}">` : `<canvas id="${canvasIdDonut}" width="250" height="225"></canvas>`}</div>
         <div class="overview-note">${overviewNote}</div>
       </div>
+      ${t.overviewImage ? '' : `<div class="chart-legend-note">
+        <span><i style="background:#2D6A4F"></i>Correct — questions answered correctly</span>
+        <span><i style="background:#E76F00"></i>Wrong — questions answered incorrectly</span>
+        <span><i style="background:#C7CDD3"></i>Unattempted — questions not attempted</span>
+      </div>`}
 
       <div class="section-perf-title">SECTION-WISE PERFORMANCE</div>
       <table class="section-table">
@@ -147,9 +157,6 @@ function buildPerfPage(t, canvasIdDonut, canvasIdBar){
           <td>${t.sectionTime}</td>
         </tr>
       </table>
-
-      <div class="time-title">TIME ANALYSIS (SECTION-WISE)</div>
-      <div class="time-chart-wrap"><canvas id="${canvasIdBar}" width="700" height="100"></canvas></div>
     </div>`,
     chartData: { correct, incorrect, unattempted, utilisedTimeMin: secToMin(utilisedTimeSec), unattemptedTimeMin: secToMin(unattemptedTimeSec), sectionName: t.sectionName }
   };
@@ -561,28 +568,59 @@ document.getElementById('reportForm').addEventListener('submit', function(e){
               type: 'doughnut',
               data: {
                 labels: ['Correct','Wrong','Unattempted'],
-                datasets: [{ data: [cd.correct, cd.incorrect, cd.unattempted], backgroundColor: ['#16A34A','#DC2626','#9CA3AF'], borderWidth: 0 }]
+                datasets: [{
+                  data: [cd.correct, cd.incorrect, cd.unattempted],
+                  backgroundColor: ['#2D6A4F','#E76F00','#C7CDD3'],
+                  borderColor: '#ffffff',
+                  borderWidth: 3,
+                  borderRadius: 6,
+                  hoverOffset: 4,
+                  spacing: 2
+                }]
               },
               options: {
                 responsive: false,
-                cutout: '60%',
+                cutout: '68%',
+                rotation: -90,
+                animation: false,
                 plugins: {
-                  legend: { position: 'bottom', labels: { font: { size: 10 }, usePointStyle: true } },
-                  tooltip: { enabled: true, callbacks: { label: (ctx) => { const v = ctx.parsed; const p = total ? (v/total*100).toFixed(1) : '0.0'; return ctx.label + ': ' + v + ' (' + p + '%)'; } } }
+                  legend: {
+                    position: 'bottom',
+                    labels: { font: { size: 11, family: "'Inter', Arial", weight: '600' }, usePointStyle: true, pointStyle: 'circle', padding: 14, boxWidth: 8, boxHeight: 8, color: '#33403A' }
+                  },
+                  tooltip: {
+                    enabled: true,
+                    backgroundColor: '#1B4332',
+                    titleColor: '#C9A227',
+                    bodyColor: '#ffffff',
+                    titleFont: { size: 11, weight: '700', family: "'Inter', Arial" },
+                    bodyFont: { size: 11, weight: '600', family: "'Inter', Arial" },
+                    padding: 10,
+                    cornerRadius: 6,
+                    displayColors: true,
+                    boxWidth: 8,
+                    boxHeight: 8,
+                    boxPadding: 4,
+                    callbacks: { label: (ctx) => { const v = ctx.parsed; const p = total ? (v/total*100).toFixed(1) : '0.0'; return ' ' + ctx.label + ': ' + v + ' questions (' + p + '%)'; } }
+                  }
                 }
               },
               plugins: [{
                 id: 'centerText',
                 beforeDraw: (chart) => {
                   const ctx = chart.ctx;
+                  const { top, bottom, left, right } = chart.chartArea;
+                  const x = (left + right) / 2;
+                  const y = (top + bottom) / 2;
                   ctx.save();
-                  const x = chart.width / 2;
-                  const y = chart.height / 2;
-                  ctx.font = 'bold 20px "Segoe UI", Arial';
-                  ctx.fillStyle = '#1D4ED8';
                   ctx.textAlign = 'center';
                   ctx.textBaseline = 'middle';
-                  ctx.fillText(centerPct + '%', x, y);
+                  ctx.font = "700 26px 'Inter', 'Segoe UI', Arial";
+                  ctx.fillStyle = '#1B4332';
+                  ctx.fillText(centerPct + '%', x, y - 8);
+                  ctx.font = "600 9.5px 'Inter', 'Segoe UI', Arial";
+                  ctx.fillStyle = '#8A9A91';
+                  ctx.fillText('SCORE', x, y + 14);
                   ctx.restore();
                 }
               }]
@@ -592,49 +630,50 @@ document.getElementById('reportForm').addEventListener('submit', function(e){
             // fallback: draw simple donut-like circle and center text
             try{
               const ctx = donutCanvas.getContext('2d');
-              const w = donutCanvas.width, h = donutCanvas.height, cx = w/2, cy = h/2, r = Math.min(w,h)/2 * 0.75;
+              const w = donutCanvas.width, h = donutCanvas.height, cx = w/2, cy = h/2 - 14, r = Math.min(w,h)/2 * 0.7;
               ctx.clearRect(0,0,w,h);
-              // background ring
-              ctx.beginPath(); ctx.fillStyle = '#9CA3AF'; ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
-              // correct slice
-              const a = (cd.correct||0)/Math.max(1,total) * Math.PI*2;
-              ctx.beginPath(); ctx.fillStyle = '#16A34A'; ctx.moveTo(cx,cy); ctx.arc(cx,cy,r, -Math.PI/2, -Math.PI/2 + a); ctx.closePath(); ctx.fill();
+              // background ring (unattempted)
+              ctx.beginPath(); ctx.fillStyle = '#C7CDD3'; ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+              // incorrect slice
+              const wrongFrac = (cd.incorrect||0)/Math.max(1,total);
+              const correctFrac = (cd.correct||0)/Math.max(1,total);
+              ctx.beginPath(); ctx.fillStyle = '#E76F00'; ctx.moveTo(cx,cy); ctx.arc(cx,cy,r, -Math.PI/2, -Math.PI/2 + (correctFrac+wrongFrac)*Math.PI*2); ctx.closePath(); ctx.fill();
+              // correct slice (drawn on top)
+              ctx.beginPath(); ctx.fillStyle = '#2D6A4F'; ctx.moveTo(cx,cy); ctx.arc(cx,cy,r, -Math.PI/2, -Math.PI/2 + correctFrac*Math.PI*2); ctx.closePath(); ctx.fill();
               // inner circle to create donut
-              ctx.beginPath(); ctx.fillStyle = '#ffffff'; ctx.arc(cx,cy,r*0.6,0,Math.PI*2); ctx.fill();
+              ctx.beginPath(); ctx.fillStyle = '#ffffff'; ctx.arc(cx,cy,r*0.68,0,Math.PI*2); ctx.fill();
               // center text
-              ctx.font = 'bold 20px "Segoe UI", Arial'; ctx.fillStyle = '#1D4ED8'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(centerPct + '%', cx, cy);
+              ctx.font = "700 24px 'Inter', 'Segoe UI', Arial"; ctx.fillStyle = '#1B4332'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(centerPct + '%', cx, cy-6);
+              ctx.font = "600 9px 'Inter', 'Segoe UI', Arial"; ctx.fillStyle = '#8A9A91'; ctx.fillText('SCORE', cx, cy+14);
             }catch(e2){ console.error('Fallback draw also failed', e2); }
           }
         }
       }catch(e){ console.error('Error creating donut chart for', donutId, e); }
-
-      try{
-        const barEl = document.getElementById(barId);
-        if(barEl && barEl.getContext){
-          const barCtx = barEl.getContext('2d');
-          chartInstances.push(new Chart(barCtx, {
-            type:'bar',
-            data:{
-              labels:[cd.sectionName],
-              datasets:[
-                {label:'Time utilised (min)', data:[cd.utilisedTimeMin], backgroundColor:'#8FD19E'},
-                {label:'Un-attempted (min)', data:[cd.unattemptedTimeMin], backgroundColor:'#F4A6A0'}
-              ]
-            },
-            options:{
-              indexAxis:'y',
-              responsive:false,
-              scales:{ x:{stacked:true, beginAtZero:true, title:{display:true,text:'Time (Minutes)',font:{size:10}}}, y:{stacked:true} },
-              plugins:{ legend:{position:'bottom', labels:{font:{size:10}}} }
-            }
-          }));
-        }
-      }catch(err){ console.error('Bar chart creation failed for', barId, err); }
     });
 
     document.getElementById('previewSection').scrollIntoView({behavior:'smooth'});
   });
 });
+
+function swapChartCanvasesForCapture(pageEl){
+  const restores = [];
+  const canvases = pageEl.querySelectorAll('canvas');
+  canvases.forEach(canvas=>{
+    const chart = chartInstances.find(c => c.canvas === canvas);
+    if(!chart) return;
+    let dataUrl;
+    try{ dataUrl = chart.toBase64Image('image/png', 1.0); }catch(e){ console.error('toBase64Image failed', e); return; }
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    img.width = canvas.width;
+    img.height = canvas.height;
+    img.style.display = 'block';
+    canvas.parentNode.insertBefore(img, canvas);
+    canvas.style.display = 'none';
+    restores.push(()=>{ img.remove(); canvas.style.display = ''; });
+  });
+  return () => restores.forEach(fn=>fn());
+}
 
 document.getElementById('downloadBtn').addEventListener('click', async function(){
   const statusEl = document.getElementById('pdfStatus');
@@ -653,7 +692,13 @@ document.getElementById('downloadBtn').addEventListener('click', async function(
 
   for(let i=0;i<pages.length;i++){
     statusEl.textContent = `Rendering page ${i+1} of ${pages.length}…`;
-    const canvas = await html2canvas(pages[i], {scale:3, useCORS:true, backgroundColor:'#ffffff', letterRendering:true});
+    const restoreCanvases = swapChartCanvasesForCapture(pages[i]);
+    let canvas;
+    try{
+      canvas = await html2canvas(pages[i], {scale:3, useCORS:true, backgroundColor:'#ffffff', letterRendering:true});
+    } finally {
+      restoreCanvases();
+    }
     const imgData = canvas.toDataURL('image/png');
     const pxW = canvas.width, pxH = canvas.height;
     const pdfWidth = 210; // mm A4
