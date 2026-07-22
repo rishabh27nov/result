@@ -34,11 +34,11 @@ function secToClock(sec){
 function buildCoverPage(data){
   const subjRows = data.subjects.map(s=>{
     const pct = (s.scored/s.total*100);
-    const lvl = levelFor(pct);
+    const lvl = s.notAttempted ? {label:'NOT ATTEMPTED', color:'#8A9A91'} : levelFor(pct);
     return `<tr>
       <td style="text-align:left;font-weight:600;">${esc(s.name)}</td>
       <td style="white-space:nowrap!important;">${s.scored}&nbsp;/&nbsp;${s.total}</td>
-      <td>${pct.toFixed(2)}%</td>
+      <td>${s.notAttempted ? '—' : pct.toFixed(2)+'%'}</td>
       <td><span class="level-tag" style="background:${lvl.color}">${lvl.label}</span></td>
     </tr>`;
   }).join('');
@@ -190,7 +190,8 @@ function collectSubjects(){
       scored: parseFloat(b.querySelector('.marksScored').value)||0,
       total: parseFloat(b.querySelector('.totalMarks').value)||1,
       color: b.querySelector('.cardColor').value || '#2D6A4F',
-      note: b.querySelector('.analysisNote').value
+      note: b.querySelector('.analysisNote').value,
+      notAttempted: isSubjectNotAttempted(name)
     });
   });
   return subjects;
@@ -223,34 +224,40 @@ const ANALYSIS_NOTES = {
     physics: {
       excellent: "Physics is a clear strength for NEET, with strong conceptual understanding and analytical ability. Continued practice with higher-order numerical and NEET-pattern questions is recommended to sustain this edge.",
       satisfactory: "Physics shows a fair grasp of concepts for NEET, but consistency needs work. Regular practice with NEET-pattern numericals and revisiting weaker chapters will help raise the score.",
-      needsImprovement: "Physics needs focused attention for NEET — core concepts require revision along with daily practice of NCERT-based and NEET-level questions to build both speed and accuracy."
+      needsImprovement: "Physics needs focused attention for NEET — core concepts require revision along with daily practice of NCERT-based and NEET-level questions to build both speed and accuracy.",
+      notAttempted: "Physics has not been attempted yet. Once a baseline test is taken, this section will reflect actual conceptual strengths and gaps for NEET."
     },
     chemistry: {
       excellent: "Chemistry performance is excellent, reflecting strong retention of NCERT concepts across Physical, Organic and Inorganic sections. Continue reinforcing with NEET-level MCQ practice.",
       satisfactory: "Chemistry shows reasonable understanding but requires more structured revision, especially in Organic and Inorganic reactions, along with regular NCERT-based practice for NEET.",
-      needsImprovement: "Chemistry is the highest priority area for improvement. Daily NCERT revision, chapter-wise MCQ practice, and maintaining an error notebook are strongly recommended for NEET."
+      needsImprovement: "Chemistry is the highest priority area for improvement. Daily NCERT revision, chapter-wise MCQ practice, and maintaining an error notebook are strongly recommended for NEET.",
+      notAttempted: "Chemistry has not been attempted yet. Once a baseline test is taken, this section will reflect actual conceptual strengths and gaps for NEET."
     },
     biology: {
       excellent: "Biology is a strong area, showing excellent recall of NCERT content — the largest scoring section in NEET. Continue reinforcing with diagram-based and assertion-reason practice.",
       satisfactory: "Biology performance is satisfactory, but since it carries the highest weightage in NEET, more focused NCERT revision and regular practice tests are recommended.",
-      needsImprovement: "Biology needs significant improvement — since it is the highest-weightage section in NEET, daily NCERT reading, diagram practice and topic-wise tests are strongly recommended."
+      needsImprovement: "Biology needs significant improvement — since it is the highest-weightage section in NEET, daily NCERT reading, diagram practice and topic-wise tests are strongly recommended.",
+      notAttempted: "Biology has not been attempted yet. Once a baseline test is taken, this section will reflect actual conceptual strengths and gaps for NEET."
     }
   },
   jee: {
     physics: {
       excellent: "Physics is a clear strength for JEE, with strong conceptual clarity and problem-solving speed on multi-concept questions. Continue practicing advanced and JEE Advanced-level problems to sustain this edge.",
       satisfactory: "Physics shows fair conceptual understanding for JEE, but speed and application on tougher, multi-step problems need more practice, particularly in Mechanics and Electrodynamics.",
-      needsImprovement: "Physics needs focused attention for JEE — fundamentals require revision along with daily practice of JEE-pattern numericals to build both speed and accuracy."
+      needsImprovement: "Physics needs focused attention for JEE — fundamentals require revision along with daily practice of JEE-pattern numericals to build both speed and accuracy.",
+      notAttempted: "Physics has not been attempted yet. Once a baseline test is taken, this section will reflect actual conceptual strengths and gaps for JEE."
     },
     chemistry: {
       excellent: "Chemistry performance is excellent for JEE, reflecting strong command over Physical Chemistry numericals along with Organic and Inorganic concepts. Continue with JEE-level mixed practice sets.",
       satisfactory: "Chemistry shows reasonable understanding for JEE but requires more structured revision, especially Physical Chemistry numericals and Organic reaction mechanisms.",
-      needsImprovement: "Chemistry is the highest priority area for improvement. Daily concept revision, formula practice in Physical Chemistry, and reaction-based practice are strongly recommended for JEE."
+      needsImprovement: "Chemistry is the highest priority area for improvement. Daily concept revision, formula practice in Physical Chemistry, and reaction-based practice are strongly recommended for JEE.",
+      notAttempted: "Chemistry has not been attempted yet. Once a baseline test is taken, this section will reflect actual conceptual strengths and gaps for JEE."
     },
     maths: {
       excellent: "Mathematics is a clear strength for JEE, with strong problem-solving speed and conceptual clarity. Focus on maintaining accuracy on advanced-level and multi-concept problems.",
       satisfactory: "Mathematics shows fair understanding for JEE, but speed and application on JEE-level problems need more practice, especially in Calculus and Coordinate Geometry.",
-      needsImprovement: "Mathematics needs focused attention for JEE — daily practice of JEE-pattern problems along with revisiting fundamentals in Algebra, Calculus and Trigonometry is recommended."
+      needsImprovement: "Mathematics needs focused attention for JEE — daily practice of JEE-pattern problems along with revisiting fundamentals in Algebra, Calculus and Trigonometry is recommended.",
+      notAttempted: "Mathematics has not been attempted yet. Once a baseline test is taken, this section will reflect actual conceptual strengths and gaps for JEE."
     }
   }
 };
@@ -272,6 +279,15 @@ function tierFor(pct){
   return 'needsImprovement';
 }
 
+// A subject counts as "not attempted" when its linked test block shows 0 attempted questions.
+function isSubjectNotAttempted(subjectKey){
+  const testBlock = document.querySelector(`.subject-block[data-testblock="${subjectKey}"]`);
+  if(!testBlock) return false;
+  const attemptedEl = testBlock.querySelector('.attemptedQ');
+  if(!attemptedEl) return false;
+  return (parseInt(attemptedEl.value, 10) || 0) === 0;
+}
+
 function updateNoteForBlock(block){
   const examType = document.getElementById('examType').value;
   const subjectKey = block.getAttribute('data-subject');
@@ -282,7 +298,7 @@ function updateNoteForBlock(block){
   const scored = parseFloat(scoredEl.value)||0;
   const total = parseFloat(totalEl.value)||1;
   const pct = total>0 ? (scored/total*100) : 0;
-  const tier = tierFor(pct);
+  const tier = isSubjectNotAttempted(subjectKey) ? 'notAttempted' : tierFor(pct);
   const note = (ANALYSIS_NOTES[examType] && ANALYSIS_NOTES[examType][subjectKey] && ANALYSIS_NOTES[examType][subjectKey][tier]) || noteEl.value;
   noteEl.value = note;
 }
@@ -291,8 +307,40 @@ function updateAllNotes(){
   document.querySelectorAll('.subject-block[data-subject]').forEach(updateNoteForBlock);
 }
 
+// Swaps subject-name / exam-name wording inside a free-text field so summary,
+// strengths, support plan etc. stay in sync with the currently selected exam
+// and third subject (Biology <-> Mathematics, NEET <-> JEE), instead of being
+// left over from whatever exam type was previously selected.
+function swapWordInField(elId, fromWord, toWord){
+  const el = document.getElementById(elId);
+  if(!el || !fromWord || !toWord || fromWord === toWord) return;
+  const pairs = [
+    [fromWord, toWord],
+    [fromWord.toLowerCase(), toWord.toLowerCase()],
+    [fromWord.toUpperCase(), toWord.toUpperCase()]
+  ];
+  pairs.forEach(([from, to])=>{
+    const re = new RegExp('\\b' + from + '\\b', 'g');
+    el.value = el.value.replace(re, to);
+  });
+}
+
+function syncFreeTextToExamContext(examType){
+  const fromThird = examType === 'jee' ? THIRD_SUBJECT_CONFIG.neet.label : THIRD_SUBJECT_CONFIG.jee.label;
+  const toThird = examType === 'jee' ? THIRD_SUBJECT_CONFIG.jee.label : THIRD_SUBJECT_CONFIG.neet.label;
+  const fromExam = examType === 'jee' ? 'NEET' : 'JEE';
+  const toExam = examType === 'jee' ? 'JEE' : 'NEET';
+
+  ['execSummary','strengths','attentions','supportPlan','overallEval'].forEach(id=>{
+    swapWordInField(id, fromThird, toThird);
+    swapWordInField(id, fromExam, toExam);
+  });
+}
+
 function applyExamType(examType){
   const third = THIRD_SUBJECT_CONFIG[examType] || THIRD_SUBJECT_CONFIG.neet;
+
+  syncFreeTextToExamContext(examType);
 
   const subjBlock = document.querySelector('.subject-block[data-subject-slot="third"]');
   if(subjBlock){
@@ -340,6 +388,16 @@ document.getElementById('examType').addEventListener('change', function(){
 document.querySelectorAll('.subject-block[data-subject]').forEach(block=>{
   block.querySelector('.marksScored').addEventListener('input', ()=>updateNoteForBlock(block));
   block.querySelector('.totalMarks').addEventListener('input', ()=>updateNoteForBlock(block));
+});
+
+document.querySelectorAll('.subject-block[data-testblock]').forEach(testBlock=>{
+  const attemptedEl = testBlock.querySelector('.attemptedQ');
+  if(!attemptedEl) return;
+  attemptedEl.addEventListener('input', ()=>{
+    const subjectKey = testBlock.getAttribute('data-testblock');
+    const subjBlock = document.querySelector(`.subject-block[data-subject="${subjectKey}"]`);
+    if(subjBlock) updateNoteForBlock(subjBlock);
+  });
 });
 
 applyExamType(document.getElementById('examType').value);
